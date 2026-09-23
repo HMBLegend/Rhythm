@@ -8,7 +8,7 @@ Next.js (App Router), TypeScript (strict), Tailwind CSS, Supabase, Vercel. Tests
 
 ## Getting started
 
-Requires Node 22+ and pnpm (`corepack enable pnpm`).
+Requires Node 22 (see `.nvmrc`) and pnpm (`corepack enable pnpm`).
 
 ```bash
 pnpm install
