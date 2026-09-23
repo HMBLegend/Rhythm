@@ -41,4 +41,4 @@ The scheduling engine decides every plan, and AI output never bypasses its valid
 
 ## Workflow
 
-`main` plus short-lived feature branches merged by pull request. CI runs lint, format check, typecheck, tests and build on every PR, and Vercel deploys a preview for each one.
+`main` is the only long-lived branch. All changes go through short-lived branches and pull requests (see [CONTRIBUTING.md](CONTRIBUTING.md)). CI runs lint, format check, typecheck, tests and build on every PR, and Vercel deploys a preview for each one.
