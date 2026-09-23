@@ -18,6 +18,11 @@ Mobile-first fitness planner. See `README.md` for the stack and `CONTRIBUTING.md
 - Never give a secret a `NEXT_PUBLIC_` prefix. Only the Supabase URL and publishable key may use it.
 - Free tiers only (`docs/decisions/0001-free-tier-only.md`).
 
+## GitHub Actions
+
+- Pin every action to a full commit SHA with a version comment, e.g. `actions/checkout@<sha> # v7.0.1`. Tags can be moved, SHAs can't. Dependabot keeps the pins up to date.
+- Treat CodeQL alerts on a PR as blocking: fix them, or explain to the user why one should be dismissed.
+
 ## Before saying work is done
 
 Run `pnpm check`, and `pnpm build` for anything touching `src/app`. Report failures as they are.
