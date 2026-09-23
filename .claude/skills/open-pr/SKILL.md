@@ -15,6 +15,8 @@ description: Get finished work on a Rhythm branch merged-ready. Runs the checks,
    - **Decisions and trade-offs:** the real choices made, or "None".
    - **How it was verified:** tick only what was actually run and passed.
    - Add `--milestone "Phase N: ..."` if the milestone exists (`gh api repos/{owner}/{repo}/milestones`).
-7. Give the user the PR URL, and say that CI and the Vercel preview will appear on it.
+7. Give the user the PR URL. Watch the checks with `gh pr checks <n> --watch` and report the result. CI is required to merge. CodeQL and the Vercel preview also appear on the PR.
 
-After merge: squash-merge, delete the branch, then `git switch main && git pull --ff-only`.
+## After merge
+
+Only squash merges are allowed, and GitHub deletes the branch automatically. Locally: `git switch main && git pull --ff-only && git branch -D <branch>`. Use `-D`, because Git can't tell that a squashed branch was merged.

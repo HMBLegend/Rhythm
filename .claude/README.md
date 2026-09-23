@@ -16,3 +16,4 @@ Keep this table in sync with `skills/`. Update it in the same commit as any skil
 ## Changelog
 
 - 2026-09-23: Created `start-work`, `open-pr`, `decision-record` and `update-skills`.
+- 2026-09-23: `open-pr` now watches the PR checks and covers cleanup after a squash merge with automatic branch deletion.
