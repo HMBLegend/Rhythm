@@ -46,6 +46,8 @@ Never reuse a branch after it has been merged. Start a new one from `main`.
 | Weekly              | **Dependabot**: grouped dependency and Actions update PRs; security fixes as soon as found |
 | On push to GitHub   | **Secret scanning push protection**: blocks pushes that contain credentials                |
 
+GitHub Actions in workflows are pinned to full commit SHAs with a version comment (`uses: owner/action@<sha> # vX.Y.Z`), because a tag can be moved to different code. Dependabot updates the SHA and the comment together.
+
 The hook is installed by `pnpm install`. It's a convenience, not the gate: CI is what blocks merging.
 
 If a PR makes a significant product or architecture choice, add a record to [`docs/decisions/`](docs/decisions/).
