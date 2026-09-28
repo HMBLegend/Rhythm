@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:types": "supabase gen types typescript --linked > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
