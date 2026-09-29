@@ -34,10 +34,25 @@ Open http://localhost:3000.
 ```
 src/lib/scheduling/   pure TypeScript: no React, Next, Supabase or LLM imports
 src/lib/llm/          server-only, the only place that talks to the LLM provider
-src/lib/supabase/     browser and server Supabase clients
+src/lib/supabase/     browser and server Supabase clients, generated database types
+supabase/migrations/  SQL migrations: the database schema, one change per file
 ```
 
 The scheduling engine decides every plan, and AI output never bypasses its validation. See [docs/decisions](docs/decisions/) for why.
+
+## Database
+
+The schema lives in `supabase/migrations/` and is applied to the hosted Supabase project with the Supabase CLI (a dev dependency). Every table has Row Level Security, so users can only reach their own rows. See [0003](docs/decisions/0003-database-schema.md).
+
+```bash
+pnpm exec supabase login                            # once per machine
+pnpm exec supabase link --project-ref <project-ref> # once per clone
+pnpm exec supabase migration new <name>             # write a migration
+pnpm exec supabase db push                          # apply new migrations
+pnpm db:types                                       # regenerate TypeScript types
+```
+
+Never edit a migration that has already been pushed. Add a new one.
 
 ## Workflow
 

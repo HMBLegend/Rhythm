@@ -11,9 +11,11 @@ Keep this table in sync with `skills/`. Update it in the same commit as any skil
 | [`start-work`](skills/start-work/SKILL.md)           | Starting any change: creates a correctly named branch off `main` | 2026-09-23   |
 | [`open-pr`](skills/open-pr/SKILL.md)                 | Work is ready: checks, push, PR with template and milestone      | 2026-09-23   |
 | [`decision-record`](skills/decision-record/SKILL.md) | A significant product or architecture choice was made            | 2026-09-23   |
+| [`db-migration`](skills/db-migration/SKILL.md)       | Adding or changing tables, columns, constraints or RLS policies  | 2026-09-28   |
 | [`update-skills`](skills/update-skills/SKILL.md)     | Adding, changing or removing a skill                             | 2026-09-23   |
 
 ## Changelog
 
 - 2026-09-23: Created `start-work`, `open-pr`, `decision-record` and `update-skills`.
 - 2026-09-23: `open-pr` now watches the PR checks and covers cleanup after a squash merge with automatic branch deletion.
+- 2026-09-28: Created `db-migration`.
