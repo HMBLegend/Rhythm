@@ -30,7 +30,7 @@ Write the subject in the imperative mood ("Add weekly plan view", not "Added…"
 3. Link it to the phase milestone.
 4. Wait for the checks to pass. Check the Vercel preview for UI changes.
 5. Squash-merge. The branch is deleted automatically.
-6. Locally: `git switch main && git pull --ff-only`, then `git branch -d <branch>`.
+6. Locally: `git switch main && git pull --ff-only`, then `git branch -D <branch>`. Use `-D`, because Git can't tell that a squashed branch was merged.
 
 Never reuse a branch after it has been merged. Start a new one from `main`.
 
@@ -51,6 +51,10 @@ GitHub Actions in workflows are pinned to full commit SHAs with a version commen
 The hook is installed by `pnpm install`. It's a convenience, not the gate: CI is what blocks merging.
 
 If a PR makes a significant product or architecture choice, add a record to [`docs/decisions/`](docs/decisions/).
+
+## Database changes
+
+Change the schema only by adding a migration in `supabase/migrations/`, never in the Supabase dashboard, and never edit a migration that has already been pushed. The steps are in the README's Database section and the `db-migration` skill.
 
 ## Working with Claude Code
 

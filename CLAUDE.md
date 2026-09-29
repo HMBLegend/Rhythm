@@ -17,6 +17,7 @@ Mobile-first fitness planner. See `README.md` for the stack and `CONTRIBUTING.md
 - `src/lib/llm` is server-only. LLM output is input to the engine and never bypasses its validation.
 - Never give a secret a `NEXT_PUBLIC_` prefix. Only the Supabase URL and publishable key may use it.
 - Free tiers only (`docs/decisions/0001-free-tier-only.md`).
+- Change the database only through new migrations in `supabase/migrations/`, never edit a pushed one, and keep RLS on every table (skill: `db-migration`, record: `docs/decisions/0003-database-schema.md`).
 
 ## GitHub Actions
 

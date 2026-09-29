@@ -20,14 +20,16 @@ Open http://localhost:3000.
 
 ## Scripts
 
-| Command          | What it does                                  |
-| ---------------- | --------------------------------------------- |
-| `pnpm dev`       | Start the dev server                          |
-| `pnpm lint`      | ESLint, including the architecture boundaries |
-| `pnpm typecheck` | Generate route types and run `tsc`            |
-| `pnpm test`      | Run Vitest once                               |
-| `pnpm format`    | Format with Prettier                          |
-| `pnpm check`     | Everything CI runs, except the build          |
+| Command           | What it does                                  |
+| ----------------- | --------------------------------------------- |
+| `pnpm dev`        | Start the dev server                          |
+| `pnpm lint`       | ESLint, including the architecture boundaries |
+| `pnpm typecheck`  | Generate route types and run `tsc`            |
+| `pnpm test`       | Run Vitest once                               |
+| `pnpm test:watch` | Run Vitest in watch mode                      |
+| `pnpm format`     | Format with Prettier                          |
+| `pnpm check`      | Everything CI runs, except the build          |
+| `pnpm db:types`   | Regenerate TypeScript types from the database |
 
 ## Architecture
 
