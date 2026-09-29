@@ -95,8 +95,8 @@ function isTimeZone(value: string) {
 
 // One schema per onboarding screen, so each screen can be checked on its own.
 export const goalStep = z.strictObject({
-  goal: z.enum(GOALS),
-  experience: z.enum(EXPERIENCE_LEVELS),
+  goal: z.enum(GOALS, "Pick a goal"),
+  experience: z.enum(EXPERIENCE_LEVELS, "Pick your experience"),
 });
 
 export const sessionsStep = z.strictObject({
