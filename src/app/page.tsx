@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 px-4 py-16">
@@ -6,6 +8,13 @@ export default function Home() {
         Realistic weekly fitness plans that fit around your actual routine, and
         re-plan with you when life gets in the way.
       </p>
+      {/* /login sends logged-in users on to onboarding or their week. */}
+      <Link
+        href="/login"
+        className="self-start rounded-lg bg-zinc-900 px-5 py-3 font-medium text-white dark:bg-white dark:text-zinc-900"
+      >
+        Get started
+      </Link>
     </main>
   );
 }
