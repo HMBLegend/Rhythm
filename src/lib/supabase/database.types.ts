@@ -39,6 +39,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      availability_window: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          start_time: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          start_time: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          start_time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       busy_block: {
         Row: {
           created_at: string
@@ -46,6 +73,7 @@ export type Database = {
           end_time: string
           id: string
           label: string | null
+          movable: boolean
           start_time: string
           user_id: string
         }
@@ -55,6 +83,7 @@ export type Database = {
           end_time: string
           id?: string
           label?: string | null
+          movable?: boolean
           start_time: string
           user_id?: string
         }
@@ -64,6 +93,7 @@ export type Database = {
           end_time?: string
           id?: string
           label?: string | null
+          movable?: boolean
           start_time?: string
           user_id?: string
         }
@@ -71,27 +101,42 @@ export type Database = {
       }
       profile: {
         Row: {
+          avoid: string[]
+          avoid_note: string | null
           created_at: string
           display_name: string | null
+          equipment: string[]
+          experience: string
           goal: string
+          onboarded_at: string | null
           session_length_min: number
           sessions_per_week: number
           timezone: string
           user_id: string
         }
         Insert: {
+          avoid?: string[]
+          avoid_note?: string | null
           created_at?: string
           display_name?: string | null
+          equipment?: string[]
+          experience: string
           goal: string
+          onboarded_at?: string | null
           session_length_min: number
           sessions_per_week: number
           timezone?: string
           user_id?: string
         }
         Update: {
+          avoid?: string[]
+          avoid_note?: string | null
           created_at?: string
           display_name?: string | null
+          equipment?: string[]
+          experience?: string
           goal?: string
+          onboarded_at?: string | null
           session_length_min?: number
           sessions_per_week?: number
           timezone?: string
@@ -216,7 +261,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      complete_onboarding: { Args: { payload: Json }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

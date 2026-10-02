@@ -37,6 +37,7 @@ Open http://localhost:3000.
 src/lib/scheduling/   pure TypeScript: no React, Next, Supabase or LLM imports
 src/lib/llm/          server-only, the only place that talks to the LLM provider
 src/lib/supabase/     browser and server Supabase clients, generated database types
+src/lib/auth/         who may see which page (used by src/proxy.ts and the pages)
 supabase/migrations/  SQL migrations: the database schema, one change per file
 ```
 
