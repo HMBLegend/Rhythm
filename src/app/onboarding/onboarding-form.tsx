@@ -26,7 +26,7 @@ import {
   EXPERIENCE_LABELS,
   GOAL_LABELS,
   label,
-} from "./labels";
+} from "@/lib/routine/labels";
 
 // Answers so far. Nothing is saved until the review screen's confirm button,
 // so leaving or refreshing the page starts over.
