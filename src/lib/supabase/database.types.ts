@@ -108,7 +108,7 @@ export type Database = {
           equipment: string[]
           experience: string
           goal: string
-          onboarded_at: string | null
+          onboarded_at: string
           session_length_min: number
           sessions_per_week: number
           timezone: string
@@ -122,7 +122,7 @@ export type Database = {
           equipment?: string[]
           experience: string
           goal: string
-          onboarded_at?: string | null
+          onboarded_at?: string
           session_length_min: number
           sessions_per_week: number
           timezone?: string
@@ -136,7 +136,7 @@ export type Database = {
           equipment?: string[]
           experience?: string
           goal?: string
-          onboarded_at?: string | null
+          onboarded_at?: string
           session_length_min?: number
           sessions_per_week?: number
           timezone?: string

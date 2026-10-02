@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 // Error codes from public.complete_onboarding: PT409 when a profile exists,
 // 23505 if two saves race and the second hits the profile's primary key.
 const ALREADY_ONBOARDED = new Set(["PT409", "23505"]);
+// The database's own rules turning the answers down: a check constraint (e.g.
+// an unknown time zone), overlapping windows (exclusion constraint), or a
+// payload check in the function. The schema should catch these first.
+const REJECTED_BY_DATABASE = new Set(["23514", "23P01", "22023"]);
 
 function error(status: number, message: string, extra?: object) {
   return Response.json({ error: message, ...extra }, { status });
@@ -50,6 +54,9 @@ export async function POST(request: Request) {
   if (dbError) {
     if (ALREADY_ONBOARDED.has(dbError.code)) {
       return error(409, "You've already completed onboarding.");
+    }
+    if (REJECTED_BY_DATABASE.has(dbError.code)) {
+      return error(400, "Some answers are invalid.");
     }
     // Log the details for debugging, but don't show database internals to the client.
     console.error("complete_onboarding failed", dbError);

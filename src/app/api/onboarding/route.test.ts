@@ -110,6 +110,19 @@ describe("POST /api/onboarding", () => {
     },
   );
 
+  it.each(["23514", "23P01", "22023"])(
+    "returns 400 when the database rejects the answers (%s)",
+    async (code) => {
+      rpc.mockResolvedValue({
+        data: null,
+        error: { code, message: "violates constraint secret_name" },
+      });
+      const response = await post(valid);
+      expect(response.status).toBe(400);
+      expect(await response.text()).not.toContain("secret_name");
+    },
+  );
+
   it("returns 500 without leaking database details", async () => {
     rpc.mockResolvedValue({
       data: null,
