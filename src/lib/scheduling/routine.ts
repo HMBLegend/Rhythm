@@ -1,7 +1,8 @@
 // A user's weekly routine: the input the scheduling engine plans around.
 // These schemas are the single source of truth for what valid input looks like.
 // The onboarding form (browser), the API (server) and, later, AI-proposed changes
-// all validate with them, so no path can store something the engine would reject.
+// all validate with them. The browser can also write the tables directly, so the
+// database repeats these rules in SQL (docs/decisions/0005); change both together.
 import { z } from "zod";
 
 export const GOALS = ["strength", "endurance", "general"] as const;
