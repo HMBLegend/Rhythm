@@ -19,3 +19,10 @@ export function toTime(minutes: number): string {
   const mm = String(minutes % 60).padStart(2, "0");
   return `${hh}:${mm}`;
 }
+
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+// ISO weekday to a short name, for reasons and violation messages.
+export function dayName(day: number): string {
+  return DAY_NAMES[day - 1] ?? `day ${day}`;
+}
