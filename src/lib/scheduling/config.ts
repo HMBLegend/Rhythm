@@ -15,6 +15,8 @@ export type EngineConfig = {
   // Minutes kept clear between a session and a busy block or another session.
   bufferMin: number;
   maxConsecutiveTrainingDays: number;
+  // Upper bound on the scheduler's search, so an impossible week returns quickly.
+  searchNodeLimit: number;
   // Types that may not fall on consecutive days.
   hardSessionTypes: readonly SessionType[];
   // What to plan for each goal, in priority order. The first N are used for N
@@ -26,6 +28,7 @@ export type EngineConfig = {
 export const ENGINE_CONFIG: EngineConfig = {
   bufferMin: 15,
   maxConsecutiveTrainingDays: 3,
+  searchNodeLimit: 2_000,
   hardSessionTypes: ["strength", "cardio"],
   goalMix: {
     strength: [
