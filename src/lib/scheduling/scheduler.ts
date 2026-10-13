@@ -1,14 +1,11 @@
 // Turns an EngineInput into a weekly plan. The scheduler only decides where to
 // try sessions; whether a placement is allowed is always the validator's call,
 // so this file holds no rule logic of its own.
-import {
-  ENGINE_CONFIG,
-  sessionMix,
-  type EngineConfig,
-  type RuleId,
-} from "./config";
+import { ENGINE_CONFIG, sessionMix, type EngineConfig } from "./config";
+import { explainPlacement, explainUnmet } from "./explain";
 import { createRules } from "./rules";
-import { dayName, toMinutes, toTime } from "./time";
+import { startTimes, WEEK } from "./slots";
+import { toMinutes, toTime } from "./time";
 import type {
   EngineInput,
   PlanResult,
@@ -20,9 +17,6 @@ import type {
   WeeklyPlan,
 } from "./types";
 import { canPlace } from "./validator";
-
-// ISO weekdays, Monday first.
-const WEEK = [1, 2, 3, 4, 5, 6, 7];
 
 type Wanted = { id: string; type: SessionType };
 
@@ -50,7 +44,7 @@ export function schedule(
   const rules = createRules(config);
 
   const all = place(wanted, ctx, rules);
-  if (all) return { status: "ok", plan: toPlan(all) };
+  if (all) return { status: "ok", plan: toPlan(all, ctx) };
 
   // The whole week doesn't fit. Keep sessions in priority order, adding each
   // one only if the plan can still be completed with it.
@@ -66,10 +60,10 @@ export function schedule(
       unmetTypes.push(w.type);
     }
   }
-  const plan = toPlan(kept);
+  const plan = toPlan(kept, ctx);
   const unmet: UnmetReason[] = unmetTypes.map((type) => ({
     type,
-    reason: whyUnmet(type, plan, ctx, rules),
+    reason: explainUnmet(type, plan, ctx, rules),
   }));
   return { status: "partial", plan, unmet };
 }
@@ -137,32 +131,6 @@ function candidates(
   return found;
 }
 
-// Start times worth trying on one day, earliest first. With interval rules
-// like ours, the earliest legal start is always either the start of a window
-// or the first minute after a busy block or session plus the buffer, so those
-// are the only times tried. A future rule about clock times (say, "not before
-// 07:00") would need its own anchor here.
-function startTimes(
-  day: number,
-  placed: Session[],
-  { input, config }: RuleContext,
-) {
-  const length = input.sessionLengthMin;
-  const after = [
-    ...input.availability.busy.filter((b) => b.day === day),
-    ...placed.filter((s) => s.day === day),
-  ].map((r) => toMinutes(r.end) + config.bufferMin);
-  const times = new Set<number>();
-  for (const w of input.availability.windows.filter((w) => w.day === day)) {
-    const from = toMinutes(w.start);
-    const lastStart = toMinutes(w.end) - length;
-    for (const t of [from, ...after]) {
-      if (t >= from && t <= lastStart) times.add(t);
-    }
-  }
-  return [...times].sort((a, b) => a - b);
-}
-
 function session(
   w: Wanted,
   day: number,
@@ -173,67 +141,24 @@ function session(
   return {
     ...w,
     ...range,
-    reason: `${capitalise(w.type)} on ${dayName(day)} ${range.start}-${range.end}: the earliest time that day that fits your windows and keeps every rule.`,
+    // Filled in by toPlan once the whole week is settled.
+    reason: "",
   };
 }
 
-// Sessions in day and time order, so a plan always reads the same way.
-function toPlan(sessions: Session[]): WeeklyPlan {
-  return {
+// Sessions in day and time order, so a plan always reads the same way, each
+// with its reason. Reasons are written last because they mention neighbouring
+// sessions, which only exist once the whole week is placed.
+function toPlan(sessions: Session[], ctx: RuleContext): WeeklyPlan {
+  const plan = {
     sessions: [...sessions].sort(
       (a, b) => a.day - b.day || toMinutes(a.start) - toMinutes(b.start),
     ),
   };
-}
-
-const RULE_PHRASES: Record<RuleId, string> = {
-  "no-busy-overlap": "your busy times",
-  "fits-free-window-with-buffer": "the buffer between commitments",
-  "max-consecutive-training-days": "the limit on training days in a row",
-  "no-back-to-back-hard-sessions": "the rest day between hard sessions",
-  "respect-preferred-times-and-days": "your training windows",
-};
-
-// One line on why a session couldn't go anywhere in the final plan.
-function whyUnmet(
-  type: SessionType,
-  plan: WeeklyPlan,
-  ctx: RuleContext,
-  rules: Rule[],
-): string {
-  const { windows } = ctx.input.availability;
-  const length = ctx.input.sessionLengthMin;
-  if (windows.length === 0) {
-    return `No ${type} session: you have no training windows this week.`;
-  }
-  if (windows.every((w) => toMinutes(w.end) - toMinutes(w.start) < length)) {
-    return `No ${type} session: none of your training windows is long enough for ${length} min.`;
-  }
-  const blocking = new Set<RuleId>();
-  const probe: Wanted = { id: "unmet", type };
-  for (const day of WEEK) {
-    for (const start of startTimes(day, plan.sessions, ctx)) {
-      const check = canPlace(
-        plan,
-        session(probe, day, start, length),
-        ctx,
-        rules,
-      );
-      if (!check.ok) for (const v of check.violations) blocking.add(v.ruleId);
-    }
-  }
-  const reasons = [...blocking].sort().map((id) => RULE_PHRASES[id]);
-  return reasons.length === 0
-    ? `No ${type} session: there's no free time left in your windows this week.`
-    : `No ${type} session: every free time left clashes with ${listOr(reasons)}.`;
-}
-
-function listOr(items: string[]) {
-  return items.length <= 1
-    ? items.join("")
-    : `${items.slice(0, -1).join(", ")} or ${items.at(-1)}`;
-}
-
-function capitalise(text: string) {
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return {
+    sessions: plan.sessions.map((s) => ({
+      ...s,
+      reason: explainPlacement(s, plan, ctx),
+    })),
+  };
 }
