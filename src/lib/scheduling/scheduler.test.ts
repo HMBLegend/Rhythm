@@ -4,7 +4,7 @@ import { schedule } from "@/lib/scheduling/scheduler";
 import { busy } from "@/lib/scheduling/test-helpers";
 import { toMinutes } from "@/lib/scheduling/time";
 import type { Availability, EngineInput } from "@/lib/scheduling/types";
-import { validate } from "@/lib/scheduling/validator";
+import { validateResult } from "@/lib/scheduling/validator";
 
 const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7];
 
@@ -27,9 +27,7 @@ function input(
 
 function hardViolations(i: EngineInput, config: EngineConfig = ENGINE_CONFIG) {
   const result = schedule(i, config);
-  return validate(result.plan, { input: i, config }).filter(
-    (v) => v.severity === "hard",
-  );
+  return validateResult(result, i, config).filter((v) => v.severity === "hard");
 }
 
 describe("schedule", () => {
@@ -162,5 +160,55 @@ describe("schedule", () => {
   it("rejects a session length that isn't a positive whole number", () => {
     expect(() => schedule(input({ sessionLengthMin: 0 }))).toThrow();
     expect(() => schedule(input({ sessionLengthMin: 30.5 }))).toThrow();
+  });
+});
+
+// A small seeded generator, so the weeks below are random-looking but the same
+// every run.
+function seeded(seed: number) {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+function randomWeek(random: () => number): EngineInput {
+  const pick = <T>(items: readonly T[]) =>
+    items[Math.floor(random() * items.length)] as T;
+  const windows = EVERY_DAY.flatMap((day) =>
+    random() < 0.3
+      ? []
+      : [
+          {
+            day,
+            start: pick(["06:00", "07:30", "12:00", "17:00"]),
+            end: pick(["09:00", "13:30", "19:00", "21:30"]),
+          },
+        ],
+  ).filter((w) => w.start < w.end);
+  const busyBlocks = EVERY_DAY.filter(() => random() < 0.5).map((day) =>
+    busy(day, pick(["08:00", "09:00"]), pick(["12:00", "17:00"])),
+  );
+  return {
+    goal: pick(["strength", "endurance", "general"] as const),
+    sessionsPerWeek: 1 + Math.floor(random() * 7),
+    sessionLengthMin: pick([30, 45, 60, 90]),
+    availability: { windows, busy: busyBlocks },
+  };
+}
+
+describe("schedule against the validator", () => {
+  it("returns a plan the validator accepts, the same one every time, for 40 random weeks", () => {
+    const random = seeded(2026);
+    for (let i = 0; i < 40; i++) {
+      const week = randomWeek(random);
+      const result = schedule(week);
+      const hard = validateResult(result, week, ENGINE_CONFIG).filter(
+        (v) => v.severity === "hard",
+      );
+      expect(hard, JSON.stringify(week)).toEqual([]);
+      expect(schedule(week)).toEqual(result);
+    }
   });
 });

@@ -9,13 +9,14 @@ describe("ENGINE_CONFIG", () => {
     expect(ENGINE_CONFIG.hardSessionTypes).toEqual(["strength", "cardio"]);
   });
 
-  it("lists the five starter rules, all hard for now", () => {
+  it("lists the six rules, all hard for now", () => {
     expect(RULE_IDS).toEqual([
       "no-busy-overlap",
       "fits-free-window-with-buffer",
       "max-consecutive-training-days",
       "no-back-to-back-hard-sessions",
       "respect-preferred-times-and-days",
+      "plan-matches-request",
     ]);
     for (const id of RULE_IDS) {
       expect(ENGINE_CONFIG.severity[id]).toBe("hard");

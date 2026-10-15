@@ -5,10 +5,17 @@ const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const MINUTES_PER_DAY = 24 * 60;
 
-export function toMinutes(time: string): number {
+// Minutes after midnight, or null if it isn't a valid "HH:MM". For input that
+// hasn't been checked yet, such as a plan an LLM proposed.
+export function parseMinutes(time: string): number | null {
   const match = HHMM.exec(time);
-  if (!match) throw new Error(`Not an HH:MM time: "${time}"`);
-  return Number(match[1]) * 60 + Number(match[2]);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+export function toMinutes(time: string): number {
+  const minutes = parseMinutes(time);
+  if (minutes === null) throw new Error(`Not an HH:MM time: "${time}"`);
+  return minutes;
 }
 
 export function toTime(minutes: number): string {

@@ -34,9 +34,16 @@ describe("createRules", () => {
     expect(rule.severity).toBe("soft");
   });
 
-  it("finds nothing wrong with an empty plan", () => {
-    for (const rule of createRules(context().config)) {
-      expect(rule.check(plan(), context())).toEqual([]);
+  it("finds nothing wrong with an empty plan when every session is unmet", () => {
+    const ctx: RuleContext = {
+      ...context(),
+      unmet: ["strength", "cardio", "mobility"].map((type) => ({
+        type: type as "strength",
+        reason: "No spot.",
+      })),
+    };
+    for (const rule of createRules(ctx.config)) {
+      expect(rule.check(plan(), ctx)).toEqual([]);
     }
   });
 });
@@ -262,5 +269,124 @@ describe("respect-preferred-times-and-days", () => {
     expect(flagged(id, plan(session("a", 2, "18:30", "18:30")), ctx)).toEqual([
       ["a"],
     ]);
+  });
+});
+
+describe("plan-matches-request", () => {
+  // Default context: goal "general", 3 sessions of 45 min -> strength, cardio, mobility.
+  const full = () =>
+    plan(
+      session("a", 1, "06:00", "06:45", "strength"),
+      session("b", 3, "06:00", "06:45", "cardio"),
+      session("c", 5, "06:00", "06:45", "mobility"),
+    );
+  const messages = (p: WeeklyPlan, ctx: RuleContext = context()) =>
+    check("plan-matches-request", p, ctx).map((v) => v.message);
+
+  it("accepts the plan that was asked for", () => {
+    expect(check("plan-matches-request", full())).toEqual([]);
+  });
+
+  it("flags two sessions that share an id", () => {
+    const p = plan(
+      session("a", 1, "06:00", "06:45", "strength"),
+      session("a", 3, "06:00", "06:45", "cardio"),
+      session("c", 5, "06:00", "06:45", "mobility"),
+    );
+    const found = check("plan-matches-request", p);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.sessionIds).toEqual(["a"]);
+    expect(found[0]?.message).toContain("same id");
+  });
+
+  it("flags a session that isn't the requested length", () => {
+    const p = plan(
+      session("a", 1, "06:00", "09:00", "strength"),
+      session("b", 3, "06:00", "06:45", "cardio"),
+      session("c", 5, "06:00", "06:45", "mobility"),
+    );
+    const found = check("plan-matches-request", p);
+    expect(found.map((v) => v.sessionIds)).toEqual([["a"]]);
+    expect(found[0]?.message).toContain("180 min");
+    expect(found[0]?.message).toContain("45 min");
+  });
+
+  it("flags a day outside 1-7 and times that don't parse, without throwing", () => {
+    const p = plan(
+      session("a", 8, "06:00", "06:45", "strength"),
+      session("b", 3, "25:00", "25:45", "cardio"),
+      session("c", 5, "07:00", "06:00", "mobility"),
+    );
+    expect(check("plan-matches-request", p).map((v) => v.sessionIds)).toEqual([
+      ["a"],
+      ["b"],
+      ["c"],
+    ]);
+  });
+
+  it("flags sessions the goal doesn't call for", () => {
+    const p = plan(
+      session("a", 1, "06:00", "06:45", "mobility"),
+      session("b", 3, "06:00", "06:45", "cardio"),
+      session("c", 5, "06:00", "06:45", "mobility"),
+    );
+    const found = messages(p);
+    expect(found.some((m) => m.includes("extra mobility"))).toBe(true);
+    expect(found.some((m) => m.includes("strength"))).toBe(true);
+  });
+
+  it("flags a session that was dropped without a reason", () => {
+    const p = plan(session("a", 1, "06:00", "06:45", "strength"));
+    const found = check("plan-matches-request", p);
+    expect(found).toHaveLength(2);
+    expect(found.every((v) => v.sessionIds.length === 0)).toBe(true);
+    expect(found.map((v) => v.message).join(" ")).toMatch(/cardio.*mobility/);
+  });
+
+  it("accepts a dropped session that is listed as unmet", () => {
+    const ctx: RuleContext = {
+      ...context(),
+      unmet: [
+        { type: "cardio", reason: "No spot." },
+        { type: "mobility", reason: "No spot." },
+      ],
+    };
+    const p = plan(session("a", 1, "06:00", "06:45", "strength"));
+    expect(check("plan-matches-request", p, ctx)).toEqual([]);
+  });
+
+  it("still flags a drop the unmet list doesn't cover", () => {
+    const ctx: RuleContext = {
+      ...context(),
+      unmet: [{ type: "cardio", reason: "No spot." }],
+    };
+    const p = plan(session("a", 1, "06:00", "06:45", "strength"));
+    expect(messages(p, ctx)).toHaveLength(1);
+  });
+
+  it("flags more sessions than were requested", () => {
+    const p = plan(
+      ...full().sessions,
+      session("d", 7, "06:00", "06:45", "strength"),
+    );
+    expect(messages(p).some((m) => m.includes("extra strength"))).toBe(true);
+  });
+
+  it("reports every problem it finds, in the same order every time", () => {
+    const p = plan(
+      session("a", 1, "06:00", "09:00", "strength"),
+      session("a", 3, "06:00", "06:45", "strength"),
+    );
+    expect(messages(p)).toEqual(messages(p));
+    expect(messages(p).length).toBeGreaterThan(2);
+  });
+});
+
+describe("rules on malformed sessions", () => {
+  it("skip a session with an unparseable time instead of throwing", () => {
+    const p = plan(session("a", 1, "25:00", "25:45"));
+    for (const rule of createRules(context().config)) {
+      expect(() => rule.check(p, context())).not.toThrow();
+    }
   });
 });

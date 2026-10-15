@@ -1,12 +1,13 @@
 // The rules that define a legal plan. Each is an independent check that only
 // reports problems; none of them places or moves anything. Thresholds and
 // severities come from config, never from literals here.
-import { RULE_IDS, type EngineConfig, type RuleId } from "./config";
-import { dayName, toMinutes } from "./time";
+import { RULE_IDS, sessionMix, type EngineConfig, type RuleId } from "./config";
+import { dayName, parseMinutes, toMinutes } from "./time";
 import type {
   Rule,
   RuleContext,
   Session,
+  SessionType,
   TimeRange,
   WeeklyPlan,
 } from "./types";
@@ -138,13 +139,119 @@ const respectPreferredTimesAndDays: Check = (plan, { input }) =>
       message: `${describe(s)} isn't inside one of your training windows.`,
     }));
 
+// A day 1-7 and an "HH:MM" start strictly before an "HH:MM" end.
+function isWellFormed(s: Session) {
+  const start = parseMinutes(s.start);
+  const end = parseMinutes(s.end);
+  return (
+    Number.isInteger(s.day) &&
+    s.day >= 1 &&
+    s.day <= 7 &&
+    start !== null &&
+    end !== null &&
+    start < end
+  );
+}
+
+// Whether the placement rules can compare this session: a day 1-7 and times
+// that parse. Anything else is left for plan-matches-request to report.
+function isComparable(s: Session) {
+  return (
+    Number.isInteger(s.day) &&
+    s.day >= 1 &&
+    s.day <= 7 &&
+    parseMinutes(s.start) !== null &&
+    parseMinutes(s.end) !== null
+  );
+}
+
+function count<T>(items: T[]) {
+  const counts = new Map<T, number>();
+  for (const item of items) counts.set(item, (counts.get(item) ?? 0) + 1);
+  return counts;
+}
+
+// The plan as a whole against what was asked for: distinct ids, sensible days
+// and times, the requested session length, and the sessions the goal calls
+// for, with any that are missing listed as unmet. Placement rules can't see
+// these, and an AI-proposed plan could get them wrong.
+const planMatchesRequest: Check = (plan, { input, config, unmet = [] }) => {
+  const findings: Finding[] = [];
+
+  for (const [id, n] of count(plan.sessions.map((s) => s.id))) {
+    if (n > 1) {
+      findings.push({
+        sessionIds: [id],
+        message: `${n} sessions share the same id "${id}".`,
+      });
+    }
+  }
+
+  for (const s of plan.sessions.filter((s) => !isWellFormed(s))) {
+    findings.push({
+      sessionIds: [s.id],
+      message: `Session "${s.id}" has a day or time that doesn't make sense (day ${s.day}, ${s.start}-${s.end}).`,
+    });
+  }
+
+  for (const s of plan.sessions.filter(isWellFormed)) {
+    const length = toMinutes(s.end) - toMinutes(s.start);
+    if (length !== input.sessionLengthMin) {
+      findings.push({
+        sessionIds: [s.id],
+        message: `${describe(s)} is ${length} min; your sessions are ${input.sessionLengthMin} min.`,
+      });
+    }
+  }
+
+  let wanted: SessionType[];
+  try {
+    wanted = sessionMix(input.goal, input.sessionsPerWeek, config);
+  } catch {
+    return findings; // The request itself is invalid; not the plan's fault.
+  }
+  const wantedCount = count(wanted);
+  const plannedCount = count(plan.sessions.map((s) => s.type));
+  const unmetCount = count(unmet.map((u) => u.type));
+  for (const [type, planned] of plannedCount) {
+    const surplus = planned - (wantedCount.get(type) ?? 0);
+    if (surplus > 0) {
+      findings.push({
+        sessionIds: plan.sessions
+          .filter((s) => s.type === type)
+          .slice(-surplus)
+          .map((s) => s.id),
+        message: `${surplus} extra ${type} ${surplus === 1 ? "session" : "sessions"} planned; your goal doesn't call for ${surplus === 1 ? "it" : "them"}.`,
+      });
+    }
+  }
+  for (const [type, wantedN] of wantedCount) {
+    const missing =
+      wantedN - (plannedCount.get(type) ?? 0) - (unmetCount.get(type) ?? 0);
+    if (missing > 0) {
+      findings.push({
+        sessionIds: [],
+        message: `${missing} ${type} ${missing === 1 ? "session is" : "sessions are"} missing from the plan and not listed as unmet.`,
+      });
+    }
+  }
+  return findings;
+};
+
 const CHECKS: Record<RuleId, Check> = {
   "no-busy-overlap": noBusyOverlap,
   "fits-free-window-with-buffer": fitsFreeWindowWithBuffer,
   "max-consecutive-training-days": maxConsecutiveTrainingDays,
   "no-back-to-back-hard-sessions": noBackToBackHardSessions,
   "respect-preferred-times-and-days": respectPreferredTimesAndDays,
+  "plan-matches-request": planMatchesRequest,
 };
+
+// Placement rules compare times, so they look only at sessions that have
+// valid ones; plan-matches-request is what reports the rest.
+function comparable(plan: WeeklyPlan): WeeklyPlan {
+  return { sessions: plan.sessions.filter(isComparable) };
+}
 
 // The rule list, with each rule's severity taken from config.
 export function createRules(config: EngineConfig): Rule[] {
@@ -154,7 +261,10 @@ export function createRules(config: EngineConfig): Rule[] {
       id,
       severity,
       check: (plan, ctx) =>
-        CHECKS[id](plan, ctx).map((f) => ({ ruleId: id, severity, ...f })),
+        CHECKS[id](
+          id === "plan-matches-request" ? plan : comparable(plan),
+          ctx,
+        ).map((f) => ({ ruleId: id, severity, ...f })),
     };
   });
 }

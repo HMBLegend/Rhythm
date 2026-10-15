@@ -136,6 +136,8 @@ const RULE_TO_DAY_REASON: Record<RuleId, DayReason> = {
   "max-consecutive-training-days": "in-a-row",
   "no-back-to-back-hard-sessions": "next-to-hard",
   "respect-preferred-times-and-days": "outside",
+  // About the plan as a whole, never one day; kept only so the table is total.
+  "plan-matches-request": "no-time",
 };
 
 // Why `type` can't go on `day`, or null if it can. When every start time that

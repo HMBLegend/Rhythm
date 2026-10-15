@@ -1,8 +1,11 @@
 // The single source of truth for what a legal plan is. The scheduler, re-plan
 // and (in Phase 6) AI-proposed changes all ask this module, and it only loops
 // over the rule list: it has no rule logic of its own.
+import type { EngineConfig } from "./config";
 import { createRules } from "./rules";
 import type {
+  EngineInput,
+  PlanResult,
   Rule,
   RuleContext,
   Session,
@@ -16,6 +19,17 @@ export function validate(
   rules: Rule[] = createRules(ctx.config),
 ): Violation[] {
   return rules.flatMap((rule) => rule.check(plan, ctx));
+}
+
+// Validates what schedule() (or an AI proposal) returned, passing along the
+// sessions it says it couldn't fit so they don't count as silently dropped.
+export function validateResult(
+  result: PlanResult,
+  input: EngineInput,
+  config: EngineConfig,
+): Violation[] {
+  const unmet = result.status === "partial" ? result.unmet : [];
+  return validate(result.plan, { input, config, unmet });
 }
 
 export function isLegal(

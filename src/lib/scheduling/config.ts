@@ -8,6 +8,7 @@ export const RULE_IDS = [
   "max-consecutive-training-days",
   "no-back-to-back-hard-sessions",
   "respect-preferred-times-and-days",
+  "plan-matches-request",
 ] as const;
 export type RuleId = (typeof RULE_IDS)[number];
 
@@ -65,6 +66,7 @@ export const ENGINE_CONFIG: EngineConfig = {
     "max-consecutive-training-days": "hard",
     "no-back-to-back-hard-sessions": "hard",
     "respect-preferred-times-and-days": "hard",
+    "plan-matches-request": "hard",
   },
 };
 

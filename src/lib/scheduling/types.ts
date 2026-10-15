@@ -56,7 +56,13 @@ export type PlanResult =
   | { status: "ok"; plan: WeeklyPlan }
   | { status: "partial"; plan: WeeklyPlan; unmet: UnmetReason[] };
 
-export type RuleContext = { input: EngineInput; config: EngineConfig };
+export type RuleContext = {
+  input: EngineInput;
+  config: EngineConfig;
+  // Sessions the plan is known to be missing, with reasons. Without it, every
+  // session the request calls for must be in the plan.
+  unmet?: UnmetReason[];
+};
 
 export type Rule = {
   id: RuleId;
