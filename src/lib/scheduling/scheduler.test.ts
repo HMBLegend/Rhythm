@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { ENGINE_CONFIG, type EngineConfig } from "@/lib/scheduling/config";
 import { schedule } from "@/lib/scheduling/scheduler";
-import { busy } from "@/lib/scheduling/test-helpers";
+import { busy, session } from "@/lib/scheduling/test-helpers";
 import { toMinutes } from "@/lib/scheduling/time";
-import type { Availability, EngineInput } from "@/lib/scheduling/types";
+import type {
+  Availability,
+  EngineInput,
+  PlanResult,
+  ScheduleOptions,
+  Session,
+  WeekPoint,
+} from "@/lib/scheduling/types";
 import { validateResult } from "@/lib/scheduling/validator";
 
 const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7];
@@ -193,6 +200,131 @@ describe("schedule", () => {
   });
 });
 
+function startsAtOrAfter(s: Session, from: WeekPoint) {
+  return (
+    s.day > from.day ||
+    (s.day === from.day && toMinutes(s.start) >= toMinutes(from.time))
+  );
+}
+
+// Hard violations, plus the kept sessions coming back exactly as given and
+// every new session starting at or after `from`.
+function problemsWith(
+  result: PlanResult,
+  i: EngineInput,
+  { keep = [], from }: ScheduleOptions,
+) {
+  const problems: string[] = validateResult(result, i, ENGINE_CONFIG)
+    .filter((v) => v.severity === "hard")
+    .map((v) => v.message);
+  for (const k of keep) {
+    if (
+      !result.plan.sessions.some((s) => JSON.stringify(s) === JSON.stringify(k))
+    ) {
+      problems.push(`kept session ${k.id} changed or went missing`);
+    }
+  }
+  const keptIds = new Set(keep.map((k) => k.id));
+  for (const s of result.plan.sessions) {
+    if (!keptIds.has(s.id) && from && !startsAtOrAfter(s, from)) {
+      problems.push(`new session ${s.id} starts before the start point`);
+    }
+  }
+  return problems;
+}
+
+describe("schedule the rest of a week", () => {
+  it("plans the same week as before when starting from Monday 00:00", () => {
+    const i = input(
+      { goal: "strength", sessionsPerWeek: 4 },
+      { busy: [busy(1, "09:00", "17:00")] },
+    );
+    expect(
+      schedule(i, ENGINE_CONFIG, { from: { day: 1, time: "00:00" } }),
+    ).toEqual(schedule(i));
+  });
+
+  it("places new sessions only from the start point onward", () => {
+    const i = input({ sessionsPerWeek: 3 });
+    const from = { day: 3, time: "12:00" };
+    const result = schedule(i, ENGINE_CONFIG, { from });
+    expect(result.status).toBe("ok");
+    expect(result.plan.sessions).toHaveLength(3);
+    expect(problemsWith(result, i, { from })).toEqual([]);
+  });
+
+  it("can start at the start point itself, mid-window", () => {
+    const i = input({ sessionsPerWeek: 1 });
+    const result = schedule(i, ENGINE_CONFIG, {
+      from: { day: 7, time: "20:10" },
+    });
+    expect(result.plan.sessions).toMatchObject([
+      { day: 7, start: "20:10", end: "20:55" },
+    ]);
+  });
+
+  it("keeps kept sessions as they are and plans only what's left of the mix", () => {
+    const i = input({ sessionsPerWeek: 3 });
+    const done = { ...session("s1", 1, "07:00", "07:45"), reason: "Kept." };
+    const options = { keep: [done], from: { day: 3, time: "00:00" } };
+    const result = schedule(i, ENGINE_CONFIG, options);
+    expect(result.status).toBe("ok");
+    expect(result.plan.sessions.map((s) => s.type).sort()).toEqual([
+      "cardio",
+      "mobility",
+      "strength",
+    ]);
+    expect(problemsWith(result, i, options)).toEqual([]);
+    const ids = result.plan.sessions.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("still applies the rules to new sessions next to kept ones", () => {
+    // A kept strength session on Wed rules out cardio on Tue and Thu.
+    const i = input({ sessionsPerWeek: 3 });
+    const keep = [session("w", 3, "07:00", "07:45", "strength")];
+    const options = { keep, from: { day: 2, time: "00:00" } };
+    const result = schedule(i, ENGINE_CONFIG, options);
+    const cardio = result.plan.sessions.find((s) => s.type === "cardio");
+    expect(cardio && [2, 4].includes(cardio.day)).toBe(false);
+    expect(problemsWith(result, i, options)).toEqual([]);
+  });
+
+  it("says which days are already past when the rest of the week can't fit", () => {
+    const i = input({ sessionsPerWeek: 3 });
+    const result = schedule(i, ENGINE_CONFIG, {
+      from: { day: 7, time: "21:30" },
+    });
+    expect(result.status).toBe("partial");
+    if (result.status !== "partial") return;
+    expect(result.plan.sessions).toEqual([]);
+    for (const u of result.unmet) {
+      expect(u.reason).toContain(
+        "Mon, Tue, Wed, Thu, Fri, Sat are already past",
+      );
+    }
+  });
+
+  it("rejects kept sessions the week's mix doesn't call for", () => {
+    const i = input({ sessionsPerWeek: 3 });
+    const keep = [
+      session("a", 1, "07:00", "07:45", "cardio"),
+      session("b", 3, "07:00", "07:45", "cardio"),
+    ];
+    expect(() => schedule(i, ENGINE_CONFIG, { keep })).toThrow(/session mix/);
+  });
+
+  it("rejects a start point that isn't a day and HH:MM time", () => {
+    for (const from of [
+      { day: 0, time: "07:00" },
+      { day: 8, time: "07:00" },
+      { day: 2, time: "25:00" },
+    ]) {
+      expect(() => schedule(input(), ENGINE_CONFIG, { from })).toThrow();
+    }
+  });
+});
+
 // A small seeded generator, so the weeks below are random-looking but the same
 // every run.
 function seeded(seed: number) {
@@ -239,6 +371,29 @@ describe("schedule against the validator", () => {
       );
       expect(hard, JSON.stringify(week)).toEqual([]);
       expect(schedule(week)).toEqual(result);
+    }
+  });
+
+  it("re-plans the rest of 40 random weeks without moving what's kept", () => {
+    const random = seeded(1021);
+    const times = ["00:00", "07:00", "12:30", "18:00", "21:00"];
+    for (let i = 0; i < 40; i++) {
+      const week = randomWeek(random);
+      const from = {
+        day: 1 + Math.floor(random() * 7),
+        time: times[Math.floor(random() * times.length)]!,
+      };
+      // Everything already planned before the start point is kept.
+      const keep = schedule(week).plan.sessions.filter(
+        (s) => !startsAtOrAfter(s, from),
+      );
+      const options = { keep, from };
+      const result = schedule(week, ENGINE_CONFIG, options);
+      expect(
+        problemsWith(result, week, options),
+        JSON.stringify({ week, from }),
+      ).toEqual([]);
+      expect(schedule(week, ENGINE_CONFIG, options)).toEqual(result);
     }
   });
 });

@@ -56,6 +56,19 @@ export type PlanResult =
   | { status: "ok"; plan: WeeklyPlan }
   | { status: "partial"; plan: WeeklyPlan; unmet: UnmetReason[] };
 
+// A point in the week: an ISO weekday and a local "HH:MM" time.
+export type WeekPoint = { day: number; time: string };
+
+// For planning part of a week that has already started.
+export type ScheduleOptions = {
+  // Sessions that stay exactly as they are (already done, skipped, or in the
+  // past). They count towards the week's session mix and the rules still see
+  // them, but the scheduler never moves them or rewrites their reasons.
+  keep?: Session[];
+  // New sessions start at or after this point. Without it, anywhere in the week.
+  from?: WeekPoint;
+};
+
 export type RuleContext = {
   input: EngineInput;
   config: EngineConfig;
