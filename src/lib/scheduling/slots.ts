@@ -1,7 +1,7 @@
 // Where in the week the scheduler looks, shared by the scheduler and the
 // explanations so both reason about the same candidate times.
 import { toMinutes } from "./time";
-import type { RuleContext, Session } from "./types";
+import type { RuleContext, Session, WeekPoint } from "./types";
 
 // ISO weekdays, Monday first.
 export const WEEK = [1, 2, 3, 4, 5, 6, 7];
@@ -30,4 +30,28 @@ export function startTimes(
     }
   }
   return [...times].sort((a, b) => a - b);
+}
+
+// startTimes, limited to `from` onward: nothing on earlier days, and on that
+// day only times at or after it, with `from` itself tried too when it's inside
+// a window, since it can then be the earliest legal start. Without `from`, the
+// same as startTimes.
+export function startTimesFrom(
+  day: number,
+  placed: Session[],
+  ctx: RuleContext,
+  from?: WeekPoint,
+) {
+  const times = startTimes(day, placed, ctx);
+  if (!from || day > from.day) return times;
+  if (day < from.day) return [];
+  const earliest = toMinutes(from.time);
+  const later = times.filter((t) => t > earliest);
+  const fits = ctx.input.availability.windows.some(
+    (w) =>
+      w.day === day &&
+      toMinutes(w.start) <= earliest &&
+      earliest + ctx.input.sessionLengthMin <= toMinutes(w.end),
+  );
+  return fits ? [earliest, ...later] : later;
 }

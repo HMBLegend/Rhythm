@@ -26,7 +26,7 @@ describe("validate", () => {
   it("collects violations from every rule", () => {
     const ctx = context(
       {
-        windows: [{ day: 1, start: "08:00", end: "10:00" }],
+        windows: [{ day: 1, start: "08:00", end: "09:15" }],
         busy: [busy(1, "09:00", "17:00")],
       },
       {},
@@ -35,7 +35,10 @@ describe("validate", () => {
     const ids = validate(plan(session("a", 1, "08:30", "09:30")), ctx).map(
       (v) => v.ruleId,
     );
-    expect(ids).toEqual(["no-busy-overlap", "fits-free-window-with-buffer"]);
+    expect(ids).toEqual([
+      "no-busy-overlap",
+      "respect-preferred-times-and-days",
+    ]);
   });
 
   it("returns violations in a stable order", () => {

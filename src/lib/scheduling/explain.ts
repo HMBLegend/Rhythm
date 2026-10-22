@@ -4,13 +4,14 @@
 // than repeating rule logic.
 import { RULE_IDS, type RuleId } from "./config";
 import { createRules } from "./rules";
-import { startTimes, WEEK } from "./slots";
+import { startTimesFrom, WEEK } from "./slots";
 import { dayName, toMinutes, toTime } from "./time";
 import type {
   Rule,
   RuleContext,
   Session,
   SessionType,
+  WeekPoint,
   WeeklyPlan,
 } from "./types";
 import { canPlace } from "./validator";
@@ -41,12 +42,14 @@ export function explainMove(
 }
 
 // Why a session of `type` couldn't go anywhere in `plan`, day by day, with
-// days that share a reason grouped together.
+// days that share a reason grouped together. With `from`, days before it are
+// reported as already past.
 export function explainUnmet(
   type: SessionType,
   plan: WeeklyPlan,
   ctx: RuleContext,
   rules: Rule[] = createRules(ctx.config),
+  from?: WeekPoint,
 ): string {
   const lead = `Couldn't fit a ${type} session`;
   const { windows } = ctx.input.availability;
@@ -60,7 +63,7 @@ export function explainUnmet(
 
   const groups = new Map<DayReason, number[]>();
   for (const day of WEEK) {
-    const reason = dayReason(day, type, plan, ctx, rules);
+    const reason = dayReason(day, type, plan, ctx, rules, from);
     if (reason) groups.set(reason, [...(groups.get(reason) ?? []), day]);
   }
   if (groups.size === 0) {
@@ -119,9 +122,10 @@ function spacingReason(session: Session, plan: WeeklyPlan) {
 }
 
 type DayReason =
-  "no-window" | "no-time" | "in-a-row" | "next-to-hard" | "outside";
+  "past" | "no-window" | "no-time" | "in-a-row" | "next-to-hard" | "outside";
 
 const DAY_PHRASES: Record<DayReason, (many: boolean) => string> = {
+  past: (many) => `${many ? "are" : "is"} already past`,
   "no-window": (many) => `${many ? "have" : "has"} no training window`,
   "no-time": (many) => `${many ? "have" : "has"} no free time left`,
   "in-a-row": () => "would make too many training days in a row",
@@ -149,11 +153,13 @@ function dayReason(
   plan: WeeklyPlan,
   ctx: RuleContext,
   rules: Rule[],
+  from?: WeekPoint,
 ): DayReason | null {
+  if (from && day < from.day) return "past";
   if (!ctx.input.availability.windows.some((w) => w.day === day)) {
     return "no-window";
   }
-  const starts = startTimes(day, plan.sessions, ctx);
+  const starts = startTimesFrom(day, plan.sessions, ctx, from);
   if (starts.length === 0) return "no-time";
   const broken: Set<RuleId>[] = [];
   for (const start of starts) {

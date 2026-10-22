@@ -49,6 +49,14 @@ describe("sessionMix", () => {
     );
   });
 
+  it("never asks for more than 4 hard sessions, the most a week can space out", () => {
+    const hard: readonly string[] = ENGINE_CONFIG.hardSessionTypes;
+    for (const goal of GOALS) {
+      const mix = sessionMix(goal, 7);
+      expect(mix.filter((t) => hard.includes(t)).length).toBeLessThanOrEqual(4);
+    }
+  });
+
   it("gives the same answer every time", () => {
     expect(sessionMix("general", 5)).toEqual(sessionMix("general", 5));
   });

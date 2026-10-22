@@ -117,6 +117,13 @@ describe("fits-free-window-with-buffer", () => {
     ]);
   });
 
+  it("leaves a session inside a busy block to no-busy-overlap", () => {
+    // One problem, one message: the overlap is reported once, not also as
+    // "less than 15 min away".
+    expect(check(id, plan(session("a", 1, "10:00", "10:45")), ctx)).toEqual([]);
+    expect(check(id, plan(session("b", 1, "08:30", "09:15")), ctx)).toEqual([]);
+  });
+
   it("keeps the buffer between two sessions on the same day", () => {
     const tight = plan(
       session("a", 3, "07:00", "08:00", "mobility"),

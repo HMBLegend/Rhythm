@@ -56,7 +56,11 @@ const fitsFreeWindowWithBuffer: Check = (plan, { input, config }) => {
   const findings: Finding[] = [];
   for (const [i, s] of sessions.entries()) {
     for (const b of input.availability.busy) {
-      if (b.day === s.day && gap(s, b) < config.bufferMin) {
+      // An actual overlap is no-busy-overlap's to report, so the user sees one
+      // message for one problem. Sessions have no overlap rule of their own,
+      // so the loop below still reports those.
+      const g = gap(s, b);
+      if (b.day === s.day && g >= 0 && g < config.bufferMin) {
         findings.push({
           sessionIds: [s.id],
           message: `${describe(s)} is less than ${config.bufferMin} min from ${b.label} (${b.start}-${b.end}).`,
