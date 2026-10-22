@@ -117,6 +117,36 @@ describe("schedule", () => {
     expect(hardViolations(i, config)).toEqual([]);
   });
 
+  it("fits every goal at every weekly count in an open week", () => {
+    for (const goal of ["strength", "endurance", "general"] as const) {
+      for (let n = 1; n <= 7; n++) {
+        const result = schedule(input({ goal, sessionsPerWeek: n }));
+        expect(result.status, `${goal} ${n}x`).toBe("ok");
+      }
+    }
+  });
+
+  it("finds a tight 7-session week rather than giving up early", () => {
+    // Only the hard days have room for two sessions, and every other day's
+    // window is a decoy that would put hard sessions back to back.
+    const i = input(
+      { goal: "strength", sessionsPerWeek: 7 },
+      {
+        windows: [
+          ...[1, 3, 5, 7].map((day) => ({
+            day,
+            start: "06:00",
+            end: "08:00",
+          })),
+          ...[2, 4, 6].map((day) => ({ day, start: "18:00", end: "18:45" })),
+        ],
+      },
+    );
+    const result = schedule(i);
+    expect(result.status).toBe("ok");
+    expect(hardViolations(i)).toEqual([]);
+  });
+
   it("returns a partial plan with reasons when the week can't fit", () => {
     // One free slot all week: only the top-priority session fits.
     const i = input(

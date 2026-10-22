@@ -21,7 +21,9 @@ export type EngineConfig = {
   // Types that may not fall on consecutive days.
   hardSessionTypes: readonly SessionType[];
   // What to plan for each goal, in priority order. The first N are used for N
-  // sessions a week, so every list has 7 entries.
+  // sessions a week, so every list has 7 entries. Hard sessions need an easier
+  // day between them, so a week holds at most 4 (Mon, Wed, Fri, Sun); every
+  // list has at most 4, and sessions past that are mobility (recovery).
   goalMix: Readonly<Record<Goal, readonly SessionType[]>>;
   severity: Readonly<Record<RuleId, Severity>>;
 };
@@ -38,7 +40,7 @@ export const ENGINE_CONFIG: EngineConfig = {
       "mobility",
       "strength",
       "cardio",
-      "strength",
+      "mobility",
       "mobility",
     ],
     endurance: [
@@ -47,8 +49,8 @@ export const ENGINE_CONFIG: EngineConfig = {
       "strength",
       "cardio",
       "mobility",
-      "cardio",
-      "strength",
+      "mobility",
+      "mobility",
     ],
     general: [
       "strength",
@@ -57,7 +59,7 @@ export const ENGINE_CONFIG: EngineConfig = {
       "strength",
       "cardio",
       "mobility",
-      "strength",
+      "mobility",
     ],
   },
   severity: {
